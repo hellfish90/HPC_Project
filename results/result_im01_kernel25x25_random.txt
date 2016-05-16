@@ -1,0 +1,14 @@
+dataSizeY = 320 
+dataSizeY = 320 
+dataSizeY = 320 
+Imatge: images/im01.ppm
+ISizeX : 1073741824
+ISizeY : 0
+kSizeX : 25
+kSizeY : 25
+0.026902 seconds elapsed for Reading image file.
+0.000968 seconds elapsed for copying image structure.
+0.000185 seconds elapsed for Reading kernel matrix.
+0.447771 seconds elapsed for make the convolution.
+0.034218 seconds elapsed for writing the resulting image.
+0.510440 seconds elapsed

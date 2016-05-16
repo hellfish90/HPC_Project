@@ -1,0 +1,14 @@
+dataSizeY = 600 
+dataSizeY = 600 
+dataSizeY = 600 
+Imatge: images/im03.ppm
+ISizeX : -2147483648
+ISizeY : 0
+kSizeX : 5
+kSizeY : 5
+0.154791 seconds elapsed for Reading image file.
+0.006802 seconds elapsed for copying image structure.
+0.000049 seconds elapsed for Reading kernel matrix.
+0.106865 seconds elapsed for make the convolution.
+0.138321 seconds elapsed for writing the resulting image.
+0.481049 seconds elapsed
