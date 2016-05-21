@@ -405,8 +405,6 @@ int main(int argc, char **argv)
     ////////////////////////////////////////
     //Initialize Image Storing file. Open the file and store the image header.
 
-    
-
     //////////////////////////////////////////////////////////////////////////////////////////////////
     // CHUNK READING
     //////////////////////////////////////////////////////////////////////////////////////////////////
@@ -417,6 +415,7 @@ int main(int argc, char **argv)
     missing_parts= source->altura % partitions;
     rgb_array = (int *) malloc(source->blockSize * 3 * sizeof(int));
 //    printf("%s ocupa %dx%d=%d pixels. Partitions=%d, halo=%d, partsize=%d pixels\n", argv[1], source->altura, source->ancho, imagesize, partitions, halo, partsize);
+    // Last node make partitions and send to other nodes
     if (rank==size-1)
     {
 
@@ -426,17 +425,17 @@ int main(int argc, char **argv)
             //        free(output);
             return -1;
         }
-
+        //For all node read a part of image and send them
         for (int i = 0; i < size-1; ++i)
         {
-            if(i==0){
+            
+            if (i==0) {
                 halosize  = halo/2;
-                chunksize = (heigth_part + halosize)* source->ancho;
-                offset   = 0;
-            }else if(i<size-1) {
+                chunksize = (heigth_part + halosize) * source->ancho ;
+            }
+            else if(i<size-1) {
                 halosize  = halo;
-                chunksize = (heigth_part + halosize)* source->ancho;
-                offset    = (source->ancho*halo/2);
+                chunksize = (heigth_part + halosize) * source->ancho ;
             }
 
             if (readImage(source, &fpsrc, chunksize, halo/2, &position)) {return -1;}
@@ -444,6 +443,7 @@ int main(int argc, char **argv)
 
             blockSize_array[i] = source->blockSize;
 
+            //Serialize
             for (int j = 0; j < (source->blockSize*3); ++j)
             {
                 if (j<source->blockSize)
@@ -460,9 +460,9 @@ int main(int argc, char **argv)
             MPI_Send(rgb_array, source->blockSize * 3 , MPI_INT, i, 1, MPI_COMM_WORLD);
         }
 
+        // Last node do the convolve and of her part and the missing part
         halosize  = halo/2;
-        chunksize = (heigth_part + halosize + missing_parts)* source->ancho;
-        offset    = (source->ancho*halo/2);
+        chunksize = (heigth_part + halosize +missing_parts)* source->ancho;
 
         if (readImage(source, &fpsrc, chunksize, halo/2, &position)) {return -1;}
 
@@ -477,8 +477,6 @@ int main(int argc, char **argv)
 
         MPI_Recv(rgb_array, source->blockSize * 3, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, 
                 MPI_COMM_WORLD, &status);
-
-            //printf("He rebut del fill: %d\n",status.MPI_SOURCE );
 
             if ( (source = initimage(image_file, &fpsrc, partitions, halo)) == NULL) {return -1;}
             
@@ -495,19 +493,15 @@ int main(int argc, char **argv)
                 
                 }
             }
-
-
-
-            if(rank==0){
+            
+            if (rank==0) {
                 halosize  = halo/2;
-                chunksize = (heigth_part + halosize)* source->ancho;
-                offset   = 0;
-            }else{
-                halosize  = halo;
-                chunksize = (heigth_part + halosize)* source->ancho;
-                offset    = (source->ancho*halo/2);
+                chunksize = (heigth_part + halo) * source->ancho;
             }
-
+            else if(rank<size-1) {
+                halosize  = halo;
+                chunksize = (heigth_part + halo) * source->ancho;
+            }
             
             if ( duplicateImageChunk(source, output, chunksize) ) {return -1;}
 
@@ -515,6 +509,22 @@ int main(int argc, char **argv)
             convolve2D(source->G, output->G, source->ancho, (source->altura/partitions)+halosize, kern->vkern, kern->kernelX, kern->kernelY);
             convolve2D(source->B, output->B, source->ancho, (source->altura/partitions)+halosize, kern->vkern, kern->kernelX, kern->kernelY);
        
+
+       for (int i = 0; i < (source->blockSize*3); ++i)
+        {
+            if (i<source->blockSize)
+            {
+                rgb_array[i] = output->R[i];
+            }else if (i>=source->blockSize && i< (source->blockSize*2))
+            {
+                rgb_array[i] = output->G[(i-source->blockSize)];
+            }else{
+                rgb_array[i] = output->B[(i-source->blockSize*2)];
+            }
+        }
+
+        MPI_Send(rgb_array, source->blockSize * 3 , MPI_INT, size-1, 1, 
+            MPI_COMM_WORLD);
     }
 
         
@@ -523,11 +533,10 @@ int main(int argc, char **argv)
     //////////////////////////////////////////////////////////////////////////////////////////////////
     //Storing resulting image partition.
 
+    //Last node recieve the blocks with order and write the final image
     if (rank==size-1)
     {
         ImagenData output_aux=NULL;
-
-
 
         for (int i = 0; i < size-1; ++i)
         {
@@ -541,7 +550,7 @@ int main(int argc, char **argv)
             if(i==0){
                 offset_aux = 0;
             }else{
-                offset_aux = (source->ancho*halo/2);;
+                offset_aux = (source->ancho*halo/2);
             }
 
             if ( (output_aux = initimage(image_file, &fpsrc, partitions, halo)) == NULL) {
@@ -558,22 +567,23 @@ int main(int argc, char **argv)
                     output_aux->G[j - blockSize_array[i]] = rgb_array[j];
                 }else{
                     output_aux->B[j - (blockSize_array[i] * 2)] = rgb_array[j];
-                
                 }
             }
-            
-            if (savingChunk(output_aux, &fpdst, blockSize_array[i], offset_aux)) {
+            printf("Node: %i offset_aux:%i\n", i,offset_aux);
+            if (savingChunk(output_aux, &fpdst, heigth_part*source->ancho, offset_aux)) {
                 perror("Error: ");
                 //        free(source);
                 //        free(output);
                 return -1;
             }
+            freeImagestructure(&output_aux);
 
             
         }
-        offset = (source->ancho*halo/2);;
+        offset = (source->ancho*halo/2);
 
-        if (savingChunk(output, &fpdst, blockSize_array[size-1], offset)) {
+        
+        if (savingChunk(output, &fpdst, heigth_part*(source->ancho+missing_parts), offset)) {
                 perror("Error: ");
                 //        free(source);
                 //        free(output);
@@ -582,26 +592,6 @@ int main(int argc, char **argv)
         
         //printf("He rebut del fill: %d\n",status.MPI_SOURCE );
 
-
-    }else{
-
-        for (int i = 0; i < (source->blockSize*3); ++i)
-        {
-            if (i<source->blockSize)
-            {
-                rgb_array[i] = output->R[i];
-            }else if (i>=source->blockSize && i< (source->blockSize*2))
-            {
-                rgb_array[i] = output->G[(i-source->blockSize)];
-            }else{
-                rgb_array[i] = output->B[(i-source->blockSize*2)];
-            }
-        }
-
-        
-
-        MPI_Send(rgb_array, source->blockSize * 3 , MPI_INT, size-1, 1, 
-            MPI_COMM_WORLD);
 
     }
 
@@ -630,7 +620,7 @@ int main(int argc, char **argv)
     free(kern->vkern);
     free(kern);
     fclose(fpsrc);
-    //fclose(fpdst);*/
+    fclose(fpdst);
     MPI_Finalize();
 
     //printf("END ==%i===\n",rank);
