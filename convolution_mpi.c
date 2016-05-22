@@ -73,7 +73,7 @@ ImagenData initimage(char* nombre, FILE **fp,int partitions, int halo){
         while((c=fgetc(*fp))!= '\n'){comentario[i]=c;i++;}
         comentario[i]='\0';
         //Allocating information for the image comment
-        img->comentario = (char*) malloc(300*sizeof(char));
+        img->comentario = (char*) calloc(300,sizeof(char));
         strcpy(img->comentario,comentario);
         //Reading image dimensions and color resolution
         fscanf(*fp,"%d %d %d",&img->ancho,&img->altura,&img->maxcolor);
@@ -82,9 +82,9 @@ ImagenData initimage(char* nombre, FILE **fp,int partitions, int halo){
 
         chunk = chunk + img->ancho * halo;
         img->blockSize = chunk;
-        if ((img->R=(int*)malloc(chunk*sizeof(int))) == NULL) {return NULL;}
-        if ((img->G=(int*)malloc(chunk*sizeof(int))) == NULL) {return NULL;}
-        if ((img->B=(int*)malloc(chunk*sizeof(int))) == NULL) {return NULL;}
+        if ((img->R=(int*)calloc(chunk,sizeof(int))) == NULL) {return NULL;}
+        if ((img->G=(int*)calloc(chunk,sizeof(int))) == NULL) {return NULL;}
+        if ((img->B=(int*)calloc(chunk,sizeof(int))) == NULL) {return NULL;}
     }
     return img;
 }
@@ -101,7 +101,7 @@ ImagenData duplicateImageData(ImagenData src, int partitions, int halo){
     //Copying the magic number
     dst->P=src->P;
     //Copying the string comment
-    dst->comentario = (char*)malloc(300*sizeof(char));
+    dst->comentario = (char*)calloc(300,sizeof(char));
     strcpy(dst->comentario,src->comentario);
     //Copying image dimensions and color resolution
     dst->ancho=src->ancho;
@@ -110,9 +110,9 @@ ImagenData duplicateImageData(ImagenData src, int partitions, int halo){
     chunk = dst->ancho*dst->altura / partitions;
     //We need to read an extra row.
     chunk = chunk + src->ancho * halo;
-    if ((dst->R=(int*)malloc(chunk*sizeof(int))) == NULL) {return NULL;}
-    if ((dst->G=(int*)malloc(chunk*sizeof(int))) == NULL) {return NULL;}
-    if ((dst->B=(int*)malloc(chunk*sizeof(int))) == NULL) {return NULL;}
+    if ((dst->R=(int*)calloc(chunk,sizeof(int))) == NULL) {return NULL;}
+    if ((dst->G=(int*)calloc(chunk,sizeof(int))) == NULL) {return NULL;}
+    if ((dst->B=(int*)calloc(chunk,sizeof(int))) == NULL) {return NULL;}
     return dst;
 }
 
@@ -175,7 +175,7 @@ kernelData leerKernel(char* nombre){
         
         //Reading kernel matrix dimensions
         fscanf(fp,"%d,%d,", &kern->kernelX, &kern->kernelY);
-        kern->vkern = (float *)malloc(kern->kernelX*kern->kernelY*sizeof(float));
+        kern->vkern = (float *)calloc(kern->kernelX*kern->kernelY,sizeof(float));
         
         // Reading kernel matrix values
         for (i=0;i<(kern->kernelX*kern->kernelY)-1;i++){
@@ -209,7 +209,7 @@ int savingChunk(ImagenData img, FILE **fp, int dim, int offset){
         if ((i+1)%6==0) fprintf(*fp,"\n");
         k++;
     }
-    printf ("Writed = %d pixels, dim=%d, offset=%d\n",k,dim, offset);
+    //printf ("Writed = %d pixels, dim=%d, offset=%d\n",k,dim, offset);
     return 0;
 }
 
@@ -332,8 +332,6 @@ int main(int argc, char **argv)
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    int blockSize_array[size];
-
     if(argc != 4)
     {
         printf("Usage: %s <image-file> <kernel-file> <result-file> \n", argv[0]);
@@ -354,9 +352,9 @@ int main(int argc, char **argv)
     double start, tstart=0, tend=0, tread=0, tcopy=0, tconv=0, tstore=0, treadk=0;
     struct timeval tim;
     FILE *fpsrc=NULL,*fpdst=NULL;
-    ImagenData source=NULL, output=NULL;
-
+    long *blockSize_array;
     char *image_file, *result_file, *kernel_file;
+    ImagenData source=NULL, output=NULL;
 
     // Store number of partitions
     partitions = size;
@@ -366,9 +364,9 @@ int main(int argc, char **argv)
     ////////////////////////////////////////
 
     //Reading kernel matrix
-    gettimeofday(&tim, NULL);
-    start = tim.tv_sec+(tim.tv_usec/1000000.0);
-    tstart = start;
+
+    start = MPI_Wtime();
+    
     kernelData kern=NULL;
     if ( (kern = leerKernel(kernel_file))==NULL) {
         //        free(source);
@@ -378,29 +376,18 @@ int main(int argc, char **argv)
     //The matrix kernel define the halo size to use with the image. The halo is zero when the image is not partitioned.
     if (partitions==1) halo=0;
     else halo = (kern->kernelY/2)*2;
-    gettimeofday(&tim, NULL);
-    treadk = treadk + (tim.tv_sec+(tim.tv_usec/1000000.0) - start);
 
     ////////////////////////////////////////
     //Reading Image Header. Image properties: Magical number, comment, size and color resolution.
-    gettimeofday(&tim, NULL);
-    start = tim.tv_sec+(tim.tv_usec/1000000.0);
     //Memory allocation based on number of partitions and halo size.
     if ( (source = initimage(image_file, &fpsrc, partitions, halo)) == NULL) {
         return -1;
     }
 
-    gettimeofday(&tim, NULL);
-    tread = tread + (tim.tv_sec+(tim.tv_usec/1000000.0) - start);
     //Duplicate the image struct.
-    gettimeofday(&tim, NULL);
-    start = tim.tv_sec+(tim.tv_usec/1000000.0);
     if ( (output = duplicateImageData(source, partitions, halo)) == NULL) {
         return -1;
     }
-
-    gettimeofday(&tim, NULL);
-    tcopy = tcopy + (tim.tv_sec+(tim.tv_usec/1000000.0) - start);
     
     ////////////////////////////////////////
     //Initialize Image Storing file. Open the file and store the image header.
@@ -413,9 +400,12 @@ int main(int argc, char **argv)
     imagesize = source->altura*source->ancho;
     heigth_part = source->altura/partitions;
     missing_parts= source->altura % partitions;
-    rgb_array = (int *) malloc(source->blockSize * 3 * sizeof(int));
+    rgb_array = (int *) calloc(source->blockSize * 3 , sizeof(int));
+    blockSize_array = (long *) calloc(size, sizeof(long));
 //    printf("%s ocupa %dx%d=%d pixels. Partitions=%d, halo=%d, partsize=%d pixels\n", argv[1], source->altura, source->ancho, imagesize, partitions, halo, partsize);
     // Last node make partitions and send to other nodes
+
+    //printf("NodeOUT %i    position->%li\n",rank,position );
     if (rank==size-1)
     {
 
@@ -425,10 +415,11 @@ int main(int argc, char **argv)
             //        free(output);
             return -1;
         }
+        //printf("Node %i    position->%li\n",rank,position );
         //For all node read a part of image and send them
-        for (int i = 0; i < size-1; ++i)
+        int i;
+        for (i = 0; i < size-1; ++i)
         {
-            
             if (i==0) {
                 halosize  = halo/2;
                 chunksize = (heigth_part + halosize) * source->ancho ;
@@ -439,12 +430,13 @@ int main(int argc, char **argv)
             }
 
             if (readImage(source, &fpsrc, chunksize, halo/2, &position)) {return -1;}
-
+            //printf("Node %i    position->%li\n",i,position );
 
             blockSize_array[i] = source->blockSize;
 
             //Serialize
-            for (int j = 0; j < (source->blockSize*3); ++j)
+            int j;
+            for (j = 0; j < (source->blockSize*3); ++j)
             {
                 if (j<source->blockSize)
                 {
@@ -479,17 +471,26 @@ int main(int argc, char **argv)
                 MPI_COMM_WORLD, &status);
 
             if ( (source = initimage(image_file, &fpsrc, partitions, halo)) == NULL) {return -1;}
-            
-            for (int i = 0; i < (source->blockSize*3); ++i)
+            int i;
+            int pos;
+            for (i = 0; i < (source->blockSize*3); ++i)
             {
                 if (i < source->blockSize)
                 {
                     source->R[i] = rgb_array[i];
                 }else if (i>=source->blockSize && i < (source->blockSize*2))
                 {
-                    source->G[i - source->blockSize] = rgb_array[i];
+                    pos = i - source->blockSize;
+                    source->G[pos] = rgb_array[i];
                 }else{
-                    source->B[i - (source->blockSize * 2)] = rgb_array[i];
+                    pos = i - (source->blockSize * 2);
+
+                    if (pos>=source->blockSize)
+                    {
+                        printf("ERROR:%i\n", status.MPI_SOURCE );
+                    }
+
+                    source->B[pos] = rgb_array[i];
                 
                 }
             }
@@ -509,22 +510,32 @@ int main(int argc, char **argv)
             convolve2D(source->G, output->G, source->ancho, (source->altura/partitions)+halosize, kern->vkern, kern->kernelX, kern->kernelY);
             convolve2D(source->B, output->B, source->ancho, (source->altura/partitions)+halosize, kern->vkern, kern->kernelX, kern->kernelY);
        
-
-       for (int i = 0; i < (source->blockSize*3); ++i)
+        
+       for (i = 0; i < (source->blockSize*3); ++i)
         {
             if (i<source->blockSize)
             {
                 rgb_array[i] = output->R[i];
             }else if (i>=source->blockSize && i< (source->blockSize*2))
             {
-                rgb_array[i] = output->G[(i-source->blockSize)];
+                pos = i-source->blockSize;
+                rgb_array[i] = output->G[pos];
             }else{
-                rgb_array[i] = output->B[(i-source->blockSize*2)];
+                pos = i-(source->blockSize*2);
+
+                if (pos>=source->blockSize)
+                    {
+                        printf("ERROR:%i\n", status.MPI_SOURCE );
+                    }
+                rgb_array[i] = output->B[pos];
             }
         }
 
         MPI_Send(rgb_array, source->blockSize * 3 , MPI_INT, size-1, 1, 
             MPI_COMM_WORLD);
+        free(rgb_array);
+        freeImagestructure(&source);
+
     }
 
         
@@ -537,8 +548,8 @@ int main(int argc, char **argv)
     if (rank==size-1)
     {
         ImagenData output_aux=NULL;
-
-        for (int i = 0; i < size-1; ++i)
+        int i;
+        for (i = 0; i < size-1; ++i)
         {
 
             MPI_Recv(rgb_array, blockSize_array[i] * 3, MPI_INT, i, MPI_ANY_TAG, 
@@ -556,8 +567,8 @@ int main(int argc, char **argv)
             if ( (output_aux = initimage(image_file, &fpsrc, partitions, halo)) == NULL) {
                 return -1;
             }
-
-            for (int j = 0; j < (blockSize_array[i]*3); ++j)
+            int j;
+            for (j = 0; j < (blockSize_array[i]*3); ++j)
             {
                 if (j < blockSize_array[i])
                 {
@@ -569,7 +580,7 @@ int main(int argc, char **argv)
                     output_aux->B[j - (blockSize_array[i] * 2)] = rgb_array[j];
                 }
             }
-            printf("Node: %i offset_aux:%i\n", i,offset_aux);
+            //printf("Node: %i offset_aux:%i\n", i,offset_aux);
             if (savingChunk(output_aux, &fpdst, heigth_part*source->ancho, offset_aux)) {
                 perror("Error: ");
                 //        free(source);
@@ -589,38 +600,26 @@ int main(int argc, char **argv)
                 //        free(output);
                 return -1;
             }
-        
+        freeImagestructure(&source);
         //printf("He rebut del fill: %d\n",status.MPI_SOURCE );
 
+        float elapsed = MPI_Wtime() - start;
+        printf("%s\n",image_file);
+        printf("%i\n",partitions);
+        printf("%s\n",kernel_file);
+        printf("%.6lf\n", elapsed);
+        fclose(fpdst);
 
     }
 
-
-    
-    
-    freeImagestructure(&source);
-    freeImagestructure(&output);
-    
-    gettimeofday(&tim, NULL);
-    tend = tim.tv_sec+(tim.tv_usec/1000000.0);
-    /*
-    printf("Imatge: %s\n", argv[1]);
-    printf("ISizeX : %d\n", source->ancho);
-    printf("ISizeY : %d\n", source->altura);
-    printf("kSizeX : %d\n", kern->kernelX);
-    printf("kSizeY : %d\n", kern->kernelY);
-    printf("%.6lf seconds elapsed for Reading image file.\n", tread);
-    printf("%.6lf seconds elapsed for copying image structure.\n", tcopy);
-    printf("%.6lf seconds elapsed for Reading kernel matrix.\n", treadk);
-    printf("%.6lf seconds elapsed for make the convolution.\n", tconv);
-    printf("%.6lf seconds elapsed for writing the resulting image.\n", tstore);
-    printf("%.6lf seconds elapsed\n", tend-tstart);
-    */
+    //freeImagestructure(&source);
+    //freeImagestructure(&output);
 
     free(kern->vkern);
     free(kern);
     fclose(fpsrc);
-    fclose(fpdst);
+
+    MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize();
 
     //printf("END ==%i===\n",rank);
