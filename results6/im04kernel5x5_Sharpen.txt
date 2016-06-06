@@ -1,0 +1,25 @@
+dataSizeY = 668 
+dataSizeY = 668 
+dataSizeY = 668 
+dataSizeY = 670 
+dataSizeY = 670 
+dataSizeY = 670 
+dataSizeY = 670 
+dataSizeY = 670 
+dataSizeY = 670 
+dataSizeY = 670 
+dataSizeY = 670 
+dataSizeY = 670 
+dataSizeY = 670 
+dataSizeY = 670 
+dataSizeY = 670 
+dataSizeY = 668 
+dataSizeY = 668 
+dataSizeY = 668 
+
+=====================================================================================
+=   BAD TERMINATION OF ONE OF YOUR APPLICATION PROCESSES
+=   EXIT CODE: 134
+=   CLEANING UP REMAINING PROCESSES
+=   YOU CAN IGNORE THE BELOW CLEANUP MESSAGES
+=====================================================================================

@@ -1,0 +1,4 @@
+/share/apps/convolution/images/im04.ppm
+3
+/share/apps/convolution/kernel/kernel5x5_Sharpen.txt
+18.957048

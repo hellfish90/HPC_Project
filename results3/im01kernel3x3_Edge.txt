@@ -1,0 +1,16 @@
+dataSizeY = 107 
+dataSizeY = 107 
+dataSizeY = 107 
+dataSizeY = 108 
+dataSizeY = 108 
+dataSizeY = 108 
+dataSizeY = 107 
+dataSizeY = 107 
+dataSizeY = 107 
+
+=====================================================================================
+=   BAD TERMINATION OF ONE OF YOUR APPLICATION PROCESSES
+=   EXIT CODE: 139
+=   CLEANING UP REMAINING PROCESSES
+=   YOU CAN IGNORE THE BELOW CLEANUP MESSAGES
+=====================================================================================

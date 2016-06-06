@@ -1,0 +1,4 @@
+/share/apps/convolution/images/im03.ppm
+6
+/share/apps/convolution/kernel/kernel3x3_Edge.txt
+0.394062

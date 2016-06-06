@@ -1,0 +1,25 @@
+dataSizeY = 46 
+dataSizeY = 46 
+dataSizeY = 46 
+dataSizeY = 47 
+dataSizeY = 47 
+dataSizeY = 47 
+dataSizeY = 47 
+dataSizeY = 47 
+dataSizeY = 47 
+dataSizeY = 47 
+dataSizeY = 47 
+dataSizeY = 47 
+dataSizeY = 47 
+dataSizeY = 47 
+dataSizeY = 47 
+dataSizeY = 47 
+dataSizeY = 47 
+dataSizeY = 47 
+
+=====================================================================================
+=   BAD TERMINATION OF ONE OF YOUR APPLICATION PROCESSES
+=   EXIT CODE: 139
+=   CLEANING UP REMAINING PROCESSES
+=   YOU CAN IGNORE THE BELOW CLEANUP MESSAGES
+=====================================================================================

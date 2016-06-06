@@ -1,0 +1,4 @@
+/share/apps/convolution/images/im02.ppm
+7
+/share/apps/convolution/kernel/kernel5x5_Sharpen.txt
+0.208733

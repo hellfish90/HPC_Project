@@ -1,0 +1,4 @@
+/share/apps/convolution/images/im02.ppm
+8
+/share/apps/convolution/kernel/kernel25x25_random.txt
+0.495380

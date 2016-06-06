@@ -1,0 +1,4 @@
+/share/apps/convolution/images/im01.ppm
+6
+/share/apps/convolution/kernel/kernel99x99_random.txt
+4.046418
